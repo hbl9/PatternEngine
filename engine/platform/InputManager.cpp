@@ -1,0 +1,84 @@
+#include "InputManager.h"
+#include "Window.h"
+#include <GLFW/glfw3.h>
+#include <cstdlib>
+#include <utility>
+
+void InputManager::ResetMouse() { _firstMouse = true; }
+
+void InputManager::OnCursorPos(double xpos, double ypos)
+{
+	float x = static_cast<float>(xpos);
+	float y = static_cast<float>(ypos);
+	if (_firstMouse) {
+		_lastX = x;
+		_lastY = y;
+		_firstMouse = false;
+		return;
+	}
+	_dx += x - _lastX;
+	_dy += _lastY - y;
+	_lastX = x;
+	_lastY = y;
+}
+
+void InputManager::OnScroll(double yoffset) { _scroll += static_cast<float>(yoffset); }
+
+bool InputManager::ConsumeMouseDelta(float& dx, float& dy)
+{
+	bool had = (std::abs(_dx) > 1e-6f) || (std::abs(_dy) > 1e-6f);
+	dx = _dx; dy = _dy;
+	_dx = _dy = 0.0f;
+	return had;
+}
+
+bool InputManager::ConsumeScroll(float& dy)
+{
+	bool had = (std::abs(_scroll) > 1e-6f);
+	dy = _scroll;
+	_scroll = 0.0f;
+	return had;
+}
+
+void InputManager::SetupInputCallbacks(Window* window)
+{
+	GLFWwindow* winGL = window->GetWindow();
+
+	auto* temp = static_cast<std::pair<Window*, InputManager*>*>(glfwGetWindowUserPointer(winGL));
+	if (temp) delete temp;
+
+	auto* data = new std::pair<Window*, InputManager*>{ window, this };
+	glfwSetWindowUserPointer(winGL, data);
+
+	glfwSetCursorPosCallback(winGL, [](GLFWwindow* w, double xpos, double ypos)
+		{
+			auto* data = static_cast<std::pair<Window*, InputManager*>*>(glfwGetWindowUserPointer(w));
+			if (data && data->first->IsCursorCaptured()) data->second->OnCursorPos(xpos, ypos);
+		});
+
+	glfwSetScrollCallback(winGL, [](GLFWwindow* w, double xoffset, double yoffset)
+		{
+			auto* data = static_cast<std::pair<Window*, InputManager*>*>(glfwGetWindowUserPointer(w));
+			if (data && data->first->IsCursorCaptured()) data->second->OnScroll(yoffset);
+		});
+
+	glfwSetMouseButtonCallback(winGL, [](GLFWwindow* w, int button, int action, int mods)
+		{
+			if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+			{
+				auto* data = static_cast<std::pair<Window*, InputManager*>*>(glfwGetWindowUserPointer(w));
+				if (data && !data->first->IsCursorCaptured())
+				{
+					data->first->SetCursorCaptured(true);
+					data->second->ResetMouse();
+				}
+			}
+		});
+
+	glfwSetKeyCallback(winGL, [](GLFWwindow* w, int key, int scancode, int action, int mods)
+		{
+			auto* data = static_cast<std::pair<Window*, InputManager*>*>(glfwGetWindowUserPointer(w));
+			if (data && key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+				data->first->SetCursorCaptured(false);
+		});
+}

@@ -1,0 +1,24 @@
+#pragma once
+
+#include "..\..\engine\camera\ICameraController.h"
+#include <glm/vec3.hpp>
+
+class InputManager;
+class Window;
+class Camera;
+
+class CameraController : public ICameraController
+{
+public:
+	explicit CameraController(Camera* camera);
+
+	glm::vec3 GetPos() const override;
+	float GetYaw()     const override;
+	float GetPitch()   const override;
+
+	void Update(InputManager& input, Window& window, float deltaTime) override;
+
+private:
+	Camera* _camera = nullptr;
+	bool _shiftPressed = false;
+};

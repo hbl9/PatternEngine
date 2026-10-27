@@ -1,0 +1,75 @@
+#include "Window.h"
+
+Window::Window(int width, int height, const char* title, GLFWmonitor* monitor, GLFWwindow* share, FrameRateMode frameRateMode)
+{
+	if (!glfwInit())
+	{
+		std::cout << "Ошибка инициализации GLFW\n";
+		return;
+	}
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	GLFWwindow* window = glfwCreateWindow(width, height, title, monitor, share);
+	if (!window)
+	{
+		std::cout << "Ошибка создания окна\n";
+		glfwTerminate();
+		return;
+	}
+
+	_window = window;
+
+	glfwMakeContextCurrent(_window);
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+		std::cout << "Ошибка загрузки указателей на функции OpenGL\n";
+
+	glViewport(0, 0, width, height);
+
+	if (frameRateMode == FrameRateMode::VSync)
+		glfwSwapInterval(1);  // vsync
+	else
+		glfwSwapInterval(0);  // Без ограничений
+
+	glfwSetFramebufferSizeCallback(_window, [](GLFWwindow*, int w, int h) { glViewport(0, 0, w, h); });
+	UpdateFrameBufferSize();
+
+}
+
+Window::~Window() { Destroy(); }
+
+bool Window::IsCursorCaptured() const { return _cursorCaptured; }
+
+void Window::SetCursorCaptured(bool captured)
+{
+	_cursorCaptured = captured;
+	glfwSetInputMode(_window, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+}
+
+void Window::MakeCurrent() { glfwMakeContextCurrent(_window); }
+
+void Window::SetVSync(FrameRateMode frameRateMode) { glfwSwapInterval(frameRateMode == FrameRateMode::VSync ? 1 : 0); }
+void Window::SetGLClearColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a) { glClearColor(r, g, b, a); }
+
+void Window::UpdateFrameBufferSize() { glfwGetFramebufferSize(_window, &_width, &_height); }
+
+GLFWwindow* Window::GetWindow() const { return _window; }
+glm::ivec2 Window::GetSizeWindow() { return glm::ivec2(_width, _height); }
+float Window::GetAspectRatio() const { return _height == 0 ? 1 : _width / static_cast<float>(_height); }
+
+void Window::PollEvents() { glfwPollEvents(); }
+
+void Window::SwapBuffers() { glfwSwapBuffers(_window); }
+
+void Window::Destroy()
+{
+	if (_window)
+	{
+		glfwDestroyWindow(_window);
+		_window = nullptr;
+	}
+}
+
+bool Window::ShouldClose() { return glfwWindowShouldClose(_window); }
